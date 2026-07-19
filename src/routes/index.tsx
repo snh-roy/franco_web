@@ -339,10 +339,14 @@ function TwitchRail({ activeSection, onSectionChange, viewerCounts, isCollapsed,
             e.stopPropagation();
             onToggleCollapse();
           }}
-          title={isCollapsed ? "Expand" : "Collapse"}
-          className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-[14px] font-sans font-bold select-none cursor-pointer flex items-center justify-center p-1 outline-none"
+          title={isCollapsed ? "Expand Side Panel" : "Collapse Side Panel"}
+          className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center p-1 outline-none"
         >
-          {isCollapsed ? "|→" : "←|"}
+          {isCollapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <ChevronLeft className="h-5 w-5" />
+          )}
         </button>
       </div>
       {channels.map((c) => (
