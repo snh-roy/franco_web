@@ -634,7 +634,14 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
         ? "h-12 w-full border-t xl:h-auto xl:w-12 xl:border-l xl:border-t-0"
         : "h-[350px] w-full border-t xl:h-auto xl:w-80 xl:border-l xl:border-t-0"
     }`}>
-      <div className={`h-12 shrink-0 flex items-center px-3 relative ${isCollapsed ? "justify-between xl:justify-center border-b border-black/60 xl:border-b-0" : "justify-between border-b border-black/60"}`}>
+      <div 
+        onClick={isCollapsed ? onToggleCollapse : undefined}
+        className={`h-12 shrink-0 flex items-center px-3 relative transition-colors ${
+          isCollapsed 
+            ? "justify-between xl:justify-center border-b border-black/60 xl:border-b-0 cursor-pointer hover:bg-foreground/5 select-none" 
+            : "justify-between border-b border-black/60"
+        }`}
+      >
         {isCollapsed ? (
           <>
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block xl:hidden">Contact Me</span>
