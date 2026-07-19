@@ -402,7 +402,7 @@ function StreamerBar({ dark, onToggleDark }: StreamerBarProps) {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <img 
-            src="/franco.jpeg" 
+            src={`${import.meta.env.BASE_URL}franco.jpeg`} 
             alt="Francisco Ramirez" 
             className="h-16 w-16 rounded-full object-cover shrink-0 ring-2 ring-live"
           />
@@ -772,7 +772,7 @@ function ResumeTab() {
   return (
     <div className="border border-border rounded-xl overflow-hidden h-[650px] w-full bg-zinc-800 animate-fade-in">
       <iframe
-        src="/resume.pdf#view=Fit"
+        src={`${import.meta.env.BASE_URL}resume.pdf#view=Fit`}
         title="Francisco Ramirez Resume"
         className="w-full h-full border-none"
       />
