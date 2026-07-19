@@ -257,9 +257,13 @@ function Index() {
         />
         <div className="flex-1 flex flex-col xl:flex-row min-w-0">
           {/* Stream area */}
-          <div className="flex-1 min-w-0 flex flex-col h-full justify-between overflow-hidden">
+          <div className={`flex-1 min-w-0 flex flex-col h-full justify-between ${isPlayerFullScreen ? "overflow-y-auto" : "overflow-hidden"}`}>
             {/* "Video" screen containing the actual site */}
-            <div className="relative bg-black min-h-[300px] sm:min-h-[400px] xl:min-h-0 xl:flex-1 flex flex-col">
+            <div className={`relative bg-black flex flex-col transition-all duration-300 ${
+              isPlayerFullScreen 
+                ? "h-full min-h-full shrink-0" 
+                : "min-h-[300px] sm:min-h-[400px] xl:min-h-0 xl:flex-1"
+            }`}>
               <div className="relative w-full h-full flex-1 overflow-hidden">
                 {/* Faux scanline / vignette */}
                 <div className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-30 dark:opacity-40"
@@ -299,12 +303,10 @@ function Index() {
             </div>
 
             {/* Streamer info bar (under video) */}
-            {!isPlayerFullScreen && (
-              <StreamerBar
-                dark={dark}
-                onToggleDark={() => setDark(!dark)}
-              />
-            )}
+            <StreamerBar
+              dark={dark}
+              onToggleDark={() => setDark(!dark)}
+            />
           </div>
 
           {/* Chat panel */}
