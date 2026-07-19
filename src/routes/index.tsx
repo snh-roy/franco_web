@@ -319,22 +319,22 @@ function Index() {
 
 
 
-function CollapseLeftIcon({ className = "h-5 w-5" }: { className?: string }) {
+function CollapseLeftIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="4" x2="12" y2="20" />
-      <line x1="12" y1="12" x2="4" y2="12" />
-      <polyline points="8 8 4 12 8 16" />
+      <line x1="12" y1="12" x2="2" y2="12" />
+      <polyline points="8 6 2 12 8 18" />
     </svg>
   );
 }
 
-function CollapseRightIcon({ className = "h-5 w-5" }: { className?: string }) {
+function CollapseRightIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="4" x2="12" y2="20" />
-      <line x1="12" y1="12" x2="20" y2="12" />
-      <polyline points="16 8 20 12 16 16" />
+      <line x1="12" y1="12" x2="22" y2="12" />
+      <polyline points="16 6 22 12 16 18" />
     </svg>
   );
 }
@@ -365,9 +365,9 @@ function TwitchRail({ activeSection, onSectionChange, viewerCounts, isCollapsed,
           className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center p-1 outline-none"
         >
           {isCollapsed ? (
-            <CollapseRightIcon className="h-5 w-5" />
+            <CollapseRightIcon className="h-6 w-6" />
           ) : (
-            <CollapseLeftIcon className="h-5 w-5" />
+            <CollapseLeftIcon className="h-6 w-6" />
           )}
         </button>
       </div>
@@ -643,7 +643,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
               title="Expand"
               className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none cursor-pointer flex items-center justify-center"
             >
-              <CollapseLeftIcon className="h-5 w-5 hidden xl:block" />
+              <CollapseLeftIcon className="h-6 w-6 hidden xl:block" />
               <ChevronUp className="h-5 w-5 block xl:hidden" />
             </button>
           </>
@@ -657,7 +657,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
               title="Collapse"
               className="absolute left-3 bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none z-10 cursor-pointer flex items-center justify-center"
             >
-              <CollapseRightIcon className="h-5 w-5 hidden xl:block" />
+              <CollapseRightIcon className="h-6 w-6 hidden xl:block" />
               <ChevronDown className="h-5 w-5 block xl:hidden" />
             </button>
             <div className="flex-1 text-center">
