@@ -61,6 +61,8 @@
   --ring: oklch(0.55 0.24 296);
   --sidebar-bg: oklch(0.97 0.005 300);
   --live: oklch(0.65 0.22 25);
+  --twitch-shell: oklch(0.16 0.015 285);
+  --twitch-panel: oklch(0.19 0.018 285);
 }
 
 .dark {
