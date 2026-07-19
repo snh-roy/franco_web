@@ -259,7 +259,7 @@ function Index() {
           {/* Stream area */}
           <div className={`flex-1 min-w-0 flex flex-col h-full justify-between ${isPlayerFullScreen ? "overflow-y-auto" : "overflow-hidden"}`}>
             {/* "Video" screen containing the actual site */}
-            <div className={`relative bg-black flex flex-col transition-all duration-300 border-b-[8px] border-zinc-950 dark:border-zinc-950 ${
+            <div className={`relative bg-black flex flex-col transition-all duration-300 border-b-[5px] border-zinc-950 dark:border-zinc-950 ${
               isPlayerFullScreen 
                 ? "h-full min-h-full shrink-0" 
                 : "min-h-[300px] sm:min-h-[400px] xl:min-h-0 xl:flex-1"
