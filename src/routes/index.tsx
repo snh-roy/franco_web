@@ -259,7 +259,7 @@ function Index() {
           {/* Stream area */}
           <div className={`flex-1 min-w-0 flex flex-col h-full justify-between ${isPlayerFullScreen ? "overflow-y-auto" : "overflow-hidden"}`}>
             {/* "Video" screen containing the actual site */}
-            <div className={`relative bg-black flex flex-col transition-all duration-300 ${
+            <div className={`relative bg-black flex flex-col transition-all duration-300 border-b-[8px] border-zinc-950 dark:border-zinc-950 ${
               isPlayerFullScreen 
                 ? "h-full min-h-full shrink-0" 
                 : "min-h-[300px] sm:min-h-[400px] xl:min-h-0 xl:flex-1"
@@ -365,7 +365,7 @@ function TwitchRail({ activeSection, onSectionChange, viewerCounts, isCollapsed,
             onToggleCollapse();
           }}
           title={isCollapsed ? "Expand Side Panel" : "Collapse Side Panel"}
-          className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center p-1 outline-none"
+          className="bg-transparent border-none text-black dark:text-white hover:opacity-75 transition-opacity cursor-pointer flex items-center justify-center p-1 outline-none"
         >
           {isCollapsed ? (
             <CollapseRightIcon className="h-6 w-6" />
@@ -651,7 +651,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
                 onToggleCollapse();
               }}
               title="Expand"
-              className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none cursor-pointer flex items-center justify-center"
+              className="bg-transparent border-none text-black dark:text-white hover:opacity-75 transition-opacity p-1 outline-none cursor-pointer flex items-center justify-center"
             >
               <CollapseLeftIcon className="h-6 w-6 hidden xl:block" />
               <ChevronUp className="h-5 w-5 block xl:hidden" />
@@ -665,7 +665,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
                 onToggleCollapse();
               }}
               title="Collapse"
-              className="absolute left-3 bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none z-10 cursor-pointer flex items-center justify-center"
+              className="absolute left-3 bg-transparent border-none text-black dark:text-white hover:opacity-75 transition-opacity p-1 outline-none z-10 cursor-pointer flex items-center justify-center"
             >
               <CollapseRightIcon className="h-6 w-6 hidden xl:block" />
               <ChevronDown className="h-5 w-5 block xl:hidden" />
