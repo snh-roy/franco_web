@@ -22,6 +22,7 @@ import {
   Twitter,
   Linkedin,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Heart,
@@ -214,6 +215,37 @@ function Index() {
     <div 
       className="h-screen bg-[var(--twitch-shell)] text-foreground flex flex-col overflow-hidden"
     >
+      {/* Mobile Top Navigation Header */}
+      <div className="lg:hidden shrink-0 flex items-center justify-between px-4 h-14 bg-[var(--twitch-panel)] border-b border-black/10 dark:border-black/60 z-30">
+        <div className="flex items-center gap-2">
+          <img 
+            src={`${import.meta.env.BASE_URL}franco_logo.png`} 
+            alt="Logo" 
+            className="h-7 w-7 object-contain"
+          />
+          <span className="font-bold text-sm">Franco.dev</span>
+        </div>
+        <div className="flex gap-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => changeSection(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  section === item.id 
+                    ? "bg-primary text-white shadow-sm" 
+                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex flex-1 min-h-0">
         <TwitchRail
           activeSection={section}
@@ -226,7 +258,7 @@ function Index() {
           {/* Stream area */}
           <div className="flex-1 min-w-0 flex flex-col h-full justify-between overflow-hidden">
             {/* "Video" screen containing the actual site */}
-            <div className="relative bg-black flex-1 min-h-0 flex flex-col">
+            <div className="relative bg-black min-h-[300px] sm:min-h-[400px] xl:min-h-0 xl:flex-1 flex flex-col">
               <div className="relative w-full h-full flex-1 overflow-hidden">
                 {/* Faux scanline / vignette */}
                 <div className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-30 dark:opacity-40"
@@ -239,8 +271,6 @@ function Index() {
                      }} />
 
                 {/* Top-left viewers overlay removed */}
-
-
 
                 {/* The website inside the "screen" */}
                 <div className="absolute inset-0 z-10 overflow-auto bg-background dark:bg-[#070709]">
@@ -571,19 +601,27 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
   };
 
   return (
-    <aside className={`shrink-0 flex flex-col bg-[var(--twitch-panel)] border-l border-black/60 h-[70vh] xl:h-auto transition-all duration-300 ${isCollapsed ? "w-12 xl:w-12" : "xl:w-80 w-full"}`}>
-      <div className={`h-12 shrink-0 flex items-center px-3 relative ${isCollapsed ? "justify-center" : "justify-between border-b border-black/60"}`}>
+    <aside className={`shrink-0 flex flex-col bg-[var(--twitch-panel)] border-black/60 transition-all duration-300 ${
+      isCollapsed
+        ? "h-12 w-full border-t xl:h-auto xl:w-12 xl:border-l xl:border-t-0"
+        : "h-[350px] w-full border-t xl:h-auto xl:w-80 xl:border-l xl:border-t-0"
+    }`}>
+      <div className={`h-12 shrink-0 flex items-center px-3 relative ${isCollapsed ? "justify-between xl:justify-center border-b border-black/60 xl:border-b-0" : "justify-between border-b border-black/60"}`}>
         {isCollapsed ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleCollapse();
-            }}
-            title="Expand"
-            className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-[14px] font-sans font-bold select-none cursor-pointer flex items-center justify-center p-1 outline-none"
-          >
-            ←|
-          </button>
+          <>
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block xl:hidden">Show Chat / Contact</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse();
+              }}
+              title="Expand"
+              className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none cursor-pointer flex items-center justify-center"
+            >
+              <ChevronLeft className="h-5 w-5 hidden xl:block" />
+              <ChevronUp className="h-5 w-5 block xl:hidden" />
+            </button>
+          </>
         ) : (
           <>
             <button
@@ -592,9 +630,10 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
                 onToggleCollapse();
               }}
               title="Collapse"
-              className="absolute left-3 bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-[14px] font-sans font-bold select-none cursor-pointer flex items-center justify-center p-1 outline-none z-10"
+              className="absolute left-3 bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none z-10 cursor-pointer flex items-center justify-center"
             >
-              |→
+              <ChevronRight className="h-5 w-5 hidden xl:block" />
+              <ChevronDown className="h-5 w-5 block xl:hidden" />
             </button>
             <div className="flex-1 text-center">
               <p className="text-foreground text-sm font-medium uppercase tracking-wider">Contact me</p>
@@ -770,7 +809,7 @@ function IntroTab() {
 
 function ResumeTab() {
   return (
-    <div className="border border-border rounded-xl overflow-hidden h-[650px] w-full bg-zinc-800 animate-fade-in">
+    <div className="border border-border rounded-xl overflow-hidden h-[450px] sm:h-[650px] w-full bg-zinc-800 animate-fade-in">
       <iframe
         src={`${import.meta.env.BASE_URL}resume.pdf#view=Fit`}
         title="Francisco Ramirez Resume"
