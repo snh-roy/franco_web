@@ -519,7 +519,7 @@ interface TwitchChatProps {
 
 function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
   const initialMessages = [
-    { user: "Franco Bot", color: "text-emerald-400", badge: "mod", text: "Welcome to my corner of the internet! Please send a message if you want to chat." },
+    { user: "Franco Bot", color: "text-emerald-400", badge: "mod", text: "Welcome! Please send a meaningful, detailed message if you want to chat about a project or an opportunity." },
     { user: "pixel_wizard", color: "text-fuchsia-400", text: "What are you shipping next?" },
     { user: "gamer_42", color: "text-sky-400", text: "I have a project in mind. Are you down?" },
   ];
