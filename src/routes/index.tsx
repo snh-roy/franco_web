@@ -321,20 +321,20 @@ function Index() {
 
 function CollapseLeftIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="4" x2="12" y2="20" />
-      <line x1="12" y1="12" x2="2" y2="12" />
-      <polyline points="8 6 2 12 8 18" />
+      <line x1="12" y1="12" x2="3" y2="12" />
+      <polyline points="7 8 3 12 7 16" />
     </svg>
   );
 }
 
 function CollapseRightIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="4" x2="12" y2="20" />
-      <line x1="12" y1="12" x2="22" y2="12" />
-      <polyline points="16 6 22 12 16 18" />
+      <line x1="12" y1="12" x2="21" y2="12" />
+      <polyline points="17 8 21 12 17 16" />
     </svg>
   );
 }
