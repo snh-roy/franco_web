@@ -37,8 +37,6 @@ import {
   Smile,
   Users,
   Sparkles,
-  Gamepad2,
-  Music,
   Tv,
   Zap,
 } from "lucide-react";
