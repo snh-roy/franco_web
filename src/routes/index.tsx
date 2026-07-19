@@ -225,7 +225,6 @@ function Index() {
             alt="Logo" 
             className="h-7 w-7 object-contain"
           />
-          <span className="font-bold text-sm">Franco.dev</span>
         </div>
         <div className="flex gap-1">
           {navItems.map((item) => {
@@ -300,10 +299,12 @@ function Index() {
             </div>
 
             {/* Streamer info bar (under video) */}
-            <StreamerBar
-              dark={dark}
-              onToggleDark={() => setDark(!dark)}
-            />
+            {!isPlayerFullScreen && (
+              <StreamerBar
+                dark={dark}
+                onToggleDark={() => setDark(!dark)}
+              />
+            )}
           </div>
 
           {/* Chat panel */}
@@ -634,7 +635,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
       <div className={`h-12 shrink-0 flex items-center px-3 relative ${isCollapsed ? "justify-between xl:justify-center border-b border-black/60 xl:border-b-0" : "justify-between border-b border-black/60"}`}>
         {isCollapsed ? (
           <>
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block xl:hidden">Show Chat / Contact</span>
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block xl:hidden">Contact Me</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
