@@ -326,8 +326,8 @@ function CollapseLeftIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="4" x2="12" y2="20" />
-      <line x1="12" y1="12" x2="3" y2="12" />
-      <polyline points="7 8 3 12 7 16" />
+      <line x1="12" y1="12" x2="1.5" y2="12" />
+      <polyline points="5.5 8 1.5 12 5.5 16" />
     </svg>
   );
 }
@@ -336,8 +336,8 @@ function CollapseRightIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="4" x2="12" y2="20" />
-      <line x1="12" y1="12" x2="21" y2="12" />
-      <polyline points="17 8 21 12 17 16" />
+      <line x1="12" y1="12" x2="22.5" y2="12" />
+      <polyline points="18.5 8 22.5 12 18.5 16" />
     </svg>
   );
 }
