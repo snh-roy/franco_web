@@ -465,11 +465,10 @@ function StreamerBar({ dark, onToggleDark }: StreamerBarProps) {
           </a>
 
           <a 
-            href="https://linkedin.com/in/franco" 
-            target="_blank" 
-            rel="noopener noreferrer"
+            href="#" 
+            onClick={(e) => e.preventDefault()}
             title="LinkedIn"
-            className="p-2.5 rounded bg-primary hover:bg-primary-glow text-white transition-colors flex items-center justify-center"
+            className="p-2.5 rounded bg-primary text-white transition-colors flex items-center justify-center cursor-not-allowed opacity-50"
           >
             <Linkedin className="h-4 w-4" />
           </a>
