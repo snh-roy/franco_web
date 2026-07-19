@@ -8,7 +8,9 @@ export default defineConfig({
   base: process.env.BASE_PATH || "/",
   plugins: [
     tanstackStart({
-      server: { entry: "server" },
+      spa: {
+        enabled: true,
+      },
     }),
     react(),
     tsconfigPaths(),
