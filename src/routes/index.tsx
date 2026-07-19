@@ -24,7 +24,7 @@ import {
   Heart,
   Search,
   Bell,
-  Bits,
+  Diamond,
   Gift,
   Settings,
   Volume2,
