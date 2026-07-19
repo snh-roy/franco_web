@@ -2,6 +2,31 @@
 @source "../src";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: 'Roobert';
+  src: url('/fonts/RoobertRegular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roobert';
+  src: url('/fonts/RoobertBold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roobert';
+  src: url('/fonts/RoobertHeavy.woff') format('woff');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -32,7 +57,7 @@
   --color-sidebar-bg: var(--sidebar-bg);
   --color-card-hover: var(--card-hover);
   --color-live: var(--live);
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Roobert", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -61,8 +86,8 @@
   --ring: oklch(0.55 0.24 296);
   --sidebar-bg: oklch(0.97 0.005 300);
   --live: oklch(0.65 0.22 25);
-  --twitch-shell: oklch(0.16 0.015 285);
-  --twitch-panel: oklch(0.19 0.018 285);
+  --twitch-shell: oklch(0.95 0.005 300);
+  --twitch-panel: oklch(0.97 0.005 300);
 }
 
 .dark {
@@ -90,6 +115,8 @@
   --ring: oklch(0.65 0.24 296);
   --sidebar-bg: oklch(0.19 0.018 285);
   --live: oklch(0.65 0.24 25);
+  --twitch-shell: oklch(0.16 0.015 285);
+  --twitch-panel: oklch(0.19 0.018 285);
 }
 
 @layer base {

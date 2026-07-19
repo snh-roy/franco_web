@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+import emailjs from "@emailjs/browser";
 import {
   Home as HomeIcon,
   LayoutDashboard,
@@ -20,10 +22,11 @@ import {
   Twitter,
   Linkedin,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Heart,
-  Search,
-  Bell,
+  PanelLeftClose,
+  PanelLeftOpen,
   Diamond,
   Gift,
   Settings,
@@ -37,17 +40,54 @@ import {
   Smile,
   Users,
   Sparkles,
-  Tv,
   Zap,
 } from "lucide-react";
+
+// Active users tracking in memory (Nitro server-side state)
+const activeUsers = new Map<string, { section: string; lastSeen: number }>();
+
+export const updatePresence = createServerFn({ method: "POST" })
+  .validator((data: { sessionId: string; section: string }) => data)
+  .handler(async ({ data }) => {
+    const { sessionId, section } = data;
+    if (sessionId) {
+      if (section === "offline") {
+        activeUsers.delete(sessionId);
+      } else {
+        activeUsers.set(sessionId, { section, lastSeen: Date.now() });
+      }
+    }
+    
+    // Clean up stale sessions (older than 6 seconds)
+    const now = Date.now();
+    for (const [id, user] of activeUsers.entries()) {
+      if (now - user.lastSeen > 6000) {
+        activeUsers.delete(id);
+      }
+    }
+    
+    const counts = {
+      home: 0,
+      about: 0,
+      contact: 0,
+    };
+    
+    for (const user of activeUsers.values()) {
+      if (user.section === "home") counts.home++;
+      else if (user.section === "about") counts.about++;
+      else if (user.section === "contact") counts.contact++;
+    }
+    
+    return counts;
+  });
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Swanand Wagh — Software Engineer" },
-      { name: "description", content: "Personal site of Swanand Wagh, software engineer. About, projects, and contact." },
-      { property: "og:title", content: "Swanand Wagh — Software Engineer" },
-      { property: "og:description", content: "Personal site of Swanand Wagh." },
+      { title: "Franco's webpage" },
+      { name: "description", content: "Personal site of Franco. About, projects, and contact." },
+      { property: "og:title", content: "Franco's webpage" },
+      { property: "og:description", content: "Personal site of Franco." },
     ],
   }),
   component: Index,
@@ -57,9 +97,106 @@ type SectionId = "home" | "dashboard" | "about" | "projects" | "contact" | "othe
 type TabId = "intro" | "resume" | "career" | "education";
 
 function Index() {
-  const [dark, setDark] = useState(true);
-  const [section, setSection] = useState<SectionId>("about");
-  const [tab, setTab] = useState<TabId>("career");
+  const [dark, setDark] = useState(false);
+  const [section, setSection] = useState<SectionId>("home");
+  const [tab, setTab] = useState<TabId>("intro");
+
+  // Resizable inner sidebar states removed
+  const [isOuterRailCollapsed, setIsOuterRailCollapsed] = useState(false);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(true);
+  const [isPlayerFullScreen, setIsPlayerFullScreen] = useState(false);
+
+  // Inner sidebar resize effect removed
+
+  // Generate a tab-specific session ID so that different tabs/browsers act as distinct users
+  const [sessionId, setSessionId] = useState("");
+
+  useEffect(() => {
+    try {
+      let id = sessionStorage.getItem("portfolio_session_id");
+      if (!id) {
+        id = Math.random().toString(36).substring(2, 11);
+        sessionStorage.setItem("portfolio_session_id", id);
+      }
+      setSessionId(id);
+    } catch (e) {
+      console.error("sessionStorage access failed:", e);
+      setSessionId(Math.random().toString(36).substring(2, 11));
+    }
+  }, []);
+
+  const [viewerCounts, setViewerCounts] = useState<{ home: number; about: number; contact: number }>({
+    home: 1, // Default section starts at 1 for the current user
+    about: 0,
+    contact: 0,
+  });
+
+  const changeSection = (newSection: SectionId) => {
+    if (newSection === "contact") {
+      setIsChatCollapsed(false);
+    }
+    if (newSection === section) return;
+    
+    // Optimistic update to reflect user switching page instantly on client side
+    setViewerCounts((prev) => {
+      const next = { ...prev };
+      if (section === "home" || section === "about" || section === "contact") {
+        next[section] = Math.max(0, next[section] - 1);
+      }
+      if (newSection === "home" || newSection === "about" || newSection === "contact") {
+        next[newSection] = (next[newSection] || 0) + 1;
+      }
+      return next;
+    });
+    
+    setSection(newSection);
+  };
+
+  const toggleFullScreen = () => {
+    const nextState = !isPlayerFullScreen;
+    setIsPlayerFullScreen(nextState);
+    if (nextState) {
+      setIsOuterRailCollapsed(true);
+      setIsChatCollapsed(true);
+    } else {
+      setIsOuterRailCollapsed(false);
+      setIsChatCollapsed(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const tick = async () => {
+      try {
+        const counts = await updatePresence({ data: { sessionId, section } });
+        setViewerCounts(counts);
+      } catch (error) {
+        console.error("Error updating presence:", error);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 3000);
+    return () => clearInterval(interval);
+  }, [sessionId, section]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const handleUnload = () => {
+      // Send a quick request to clear presence on the server immediately when closing/reloading the page
+      fetch("/_server/?_server_fn=updatePresence", {
+        method: "POST",
+        body: JSON.stringify({ sessionId, section: "offline" }),
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+      });
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [sessionId]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -69,104 +206,45 @@ function Index() {
 
   const navItems: { id: SectionId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: "home", label: "Home", icon: HomeIcon },
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "about", label: "About", icon: User },
-    { id: "projects", label: "Projects", icon: Coffee },
     { id: "contact", label: "Contact", icon: Send },
-    { id: "others", label: "Others", icon: MoreHorizontal },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--twitch-shell)] text-foreground flex flex-col">
-      <TwitchTopBar />
+    <div 
+      className="h-screen bg-[var(--twitch-shell)] text-foreground flex flex-col overflow-hidden"
+    >
       <div className="flex flex-1 min-h-0">
-        <TwitchRail />
+        <TwitchRail
+          activeSection={section}
+          onSectionChange={changeSection}
+          viewerCounts={viewerCounts}
+          isCollapsed={isOuterRailCollapsed}
+          onToggleCollapse={() => setIsOuterRailCollapsed(!isOuterRailCollapsed)}
+        />
         <div className="flex-1 flex flex-col xl:flex-row min-w-0">
           {/* Stream area */}
-          <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 flex flex-col h-full justify-between overflow-hidden">
             {/* "Video" screen containing the actual site */}
-            <div className="relative bg-black">
-              <div className="relative aspect-video w-full overflow-hidden border-b-4 border-black">
+            <div className="relative bg-black flex-1 min-h-0 flex flex-col">
+              <div className="relative w-full h-full flex-1 overflow-hidden">
                 {/* Faux scanline / vignette */}
-                <div className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-40"
+                <div className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-30 dark:opacity-40"
                      style={{ backgroundImage: "repeating-linear-gradient(to bottom, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 3px)" }} />
-                <div className="pointer-events-none absolute inset-0 z-20"
-                     style={{ boxShadow: "inset 0 0 120px 20px rgba(0,0,0,0.55)" }} />
+                <div className="pointer-events-none absolute inset-0 z-20 border border-black/15 dark:border-white/10"
+                     style={{
+                       boxShadow: dark
+                         ? "inset 0 0 50px rgba(200, 200, 200, 0.08), inset 0 0 15px rgba(255, 255, 255, 0.04)"
+                         : "inset 0 0 60px rgba(0, 0, 0, 0.12)"
+                     }} />
 
-                {/* Top-left LIVE + viewers */}
-                <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-live text-white text-xs font-black tracking-wider">LIVE</span>
-                  <span className="px-2 py-0.5 rounded bg-black/70 backdrop-blur text-white text-xs font-semibold flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-live" /> 12,847
-                  </span>
-                </div>
+                {/* Top-left viewers overlay removed */}
 
-                {/* Top-right stream time */}
-                <div className="absolute top-3 right-3 z-30">
-                  <span className="px-2 py-0.5 rounded bg-black/70 backdrop-blur text-white text-xs font-mono">
-                    3:42:19
-                  </span>
-                </div>
+
 
                 {/* The website inside the "screen" */}
-                <div className="absolute inset-0 z-10 overflow-auto bg-background">
+                <div className="absolute inset-0 z-10 overflow-auto bg-background dark:bg-[#070709]">
                   <div className="min-h-full flex flex-col md:flex-row">
-                    {/* Sidebar */}
-                    <aside className="md:w-60 shrink-0 bg-[var(--sidebar-bg)] border-b md:border-b-0 md:border-r border-border p-4 flex flex-col">
-                      <div className="flex flex-col items-center md:items-start">
-                        <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary to-primary-glow p-[3px]">
-                          <div className="w-full h-full rounded-full bg-card grid place-items-center text-2xl font-bold text-primary">
-                            SW
-                          </div>
-                        </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <h1 className="text-lg font-bold">Swanand Wagh</h1>
-                          <BadgeCheck className="h-4 w-4 text-primary fill-primary/20" />
-                        </div>
-                        <p className="text-xs text-muted-foreground">@alias</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="flex items-center gap-1.5 text-xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
-                            Software Engineer
-                          </span>
-                          <button
-                            onClick={() => setDark((d) => !d)}
-                            aria-label="Toggle theme"
-                            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${dark ? "bg-primary" : "bg-muted"}`}
-                          >
-                            <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-sm transition-transform ${dark ? "translate-x-4" : "translate-x-0.5"}`}>
-                              {dark ? <Moon className="h-2.5 w-2.5 text-primary" /> : <Sun className="h-2.5 w-2.5 text-amber-500" />}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <nav className="mt-5 flex-1 space-y-0.5">
-                        {navItems.map((item) => {
-                          const Icon = item.icon;
-                          const active = section === item.id;
-                          return (
-                            <button
-                              key={item.id}
-                              onClick={() => setSection(item.id)}
-                              className={`w-full group flex items-center justify-between rounded-md px-2.5 py-2 text-xs font-medium transition-colors ${
-                                active ? "bg-primary/15 text-primary" : "text-foreground/80 hover:bg-card-hover hover:text-foreground"
-                              }`}
-                            >
-                              <span className="flex items-center gap-2.5">
-                                <Icon className="h-3.5 w-3.5" />
-                                {item.label}
-                              </span>
-                              <ArrowRight className={`h-3.5 w-3.5 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover:opacity-60"}`} />
-                            </button>
-                          );
-                        })}
-                      </nav>
-
-                      <div className="mt-5 pt-4 border-t border-border text-[10px] text-muted-foreground">
-                        © 2026 with <Heart className="inline h-2.5 w-2.5 fill-primary text-primary" /> by Swanand
-                      </div>
-                    </aside>
 
                     {/* Main */}
                     <main className="flex-1 p-5 md:p-8">
@@ -181,236 +259,409 @@ function Index() {
                 </div>
 
                 {/* Player controls overlay */}
-                <PlayerControls />
+                <PlayerControls
+                  isFullScreen={isPlayerFullScreen}
+                  onToggleFullScreen={toggleFullScreen}
+                  isBgDark={dark || (section === "about" && tab === "resume")}
+                />
               </div>
             </div>
 
             {/* Streamer info bar (under video) */}
-            <StreamerBar />
+            <StreamerBar
+              dark={dark}
+              onToggleDark={() => setDark(!dark)}
+            />
           </div>
 
           {/* Chat panel */}
-          <TwitchChat />
+          <TwitchChat
+            isCollapsed={isChatCollapsed}
+            onToggleCollapse={() => setIsChatCollapsed(!isChatCollapsed)}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function TwitchTopBar() {
-  return (
-    <header className="h-12 shrink-0 bg-[var(--twitch-shell)] border-b border-black/60 flex items-center justify-between px-3 gap-3">
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-md bg-primary grid place-items-center">
-          <Tv className="h-5 w-5 text-white" />
-        </div>
-        <nav className="hidden md:flex items-center gap-4 text-sm font-semibold text-white/90">
-          <a className="hover:text-white">Following</a>
-          <a className="hover:text-white">Browse</a>
-          <span className="text-white/40">|</span>
-          <a className="hover:text-white flex items-center gap-1">More <ChevronDown className="h-3.5 w-3.5" /></a>
-        </nav>
-      </div>
-      <div className="flex-1 max-w-md hidden md:block">
-        <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-md px-3 py-1.5 text-sm text-white/70">
-          <Search className="h-4 w-4" />
-          <span>Search</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <button className="p-2 rounded hover:bg-white/10 text-white/80"><Diamond className="h-4 w-4" /></button>
-        <button className="p-2 rounded hover:bg-white/10 text-white/80"><Gift className="h-4 w-4" /></button>
-        <button className="p-2 rounded hover:bg-white/10 text-white/80"><Bell className="h-4 w-4" /></button>
-        <div className="h-7 w-7 rounded-full bg-linear-to-br from-primary to-primary-glow" />
-      </div>
-    </header>
-  );
+
+
+interface TwitchRailProps {
+  activeSection: SectionId;
+  onSectionChange: (section: SectionId) => void;
+  viewerCounts: { home: number; about: number; contact: number };
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
-function TwitchRail() {
+function TwitchRail({ activeSection, onSectionChange, viewerCounts, isCollapsed, onToggleCollapse }: TwitchRailProps) {
   const channels = [
-    { name: "swanand", game: "Just Chatting", viewers: "12.8K", color: "from-primary to-primary-glow", live: true },
-    { name: "ninja", game: "Fortnite", viewers: "34.2K", color: "from-rose-500 to-orange-400", live: true },
-    { name: "pokimane", game: "Valorant", viewers: "18.9K", color: "from-pink-500 to-fuchsia-400", live: true },
-    { name: "shroud", game: "Apex", viewers: "22.1K", color: "from-emerald-500 to-teal-400", live: true },
-    { name: "xqc", game: "Chess", viewers: "45.6K", color: "from-yellow-400 to-amber-500", live: true },
-    { name: "hasan", game: "Politics", viewers: "8.3K", color: "from-indigo-500 to-blue-400", live: true },
+    { name: "Home", game: "@home", viewers: activeSection === "home" ? 1 : 0, color: "from-primary to-primary-glow", live: activeSection === "home", sectionId: "home" as SectionId },
+    { name: "About", game: "@about", viewers: activeSection === "about" ? 1 : 0, color: "from-rose-500 to-orange-400", live: activeSection === "about", sectionId: "about" as SectionId },
+    { name: "Contact", game: "@contact", viewers: activeSection === "contact" ? 1 : 0, color: "from-pink-500 to-fuchsia-400", live: activeSection === "contact", sectionId: "contact" as SectionId },
   ];
   return (
-    <aside className="hidden lg:flex w-60 shrink-0 flex-col bg-[var(--twitch-panel)] border-r border-black/60 p-2 gap-2 overflow-y-auto">
-      <div className="flex items-center justify-between px-2 py-1 text-white/80 text-xs font-bold uppercase tracking-wider">
-        <span>For You</span>
-        <MoreHorizontal className="h-4 w-4" />
+    <aside className={`hidden lg:flex shrink-0 flex-col bg-[var(--twitch-panel)] border-r border-black/60 p-2 gap-2 overflow-y-auto transition-all duration-300 ${isCollapsed ? "w-16" : "w-60"}`}>
+      <div className={`flex items-center px-2 py-1 ${isCollapsed ? "justify-center" : "justify-end"}`}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapse();
+          }}
+          title={isCollapsed ? "Expand" : "Collapse"}
+          className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-[14px] font-sans font-bold select-none cursor-pointer flex items-center justify-center p-1 outline-none"
+        >
+          {isCollapsed ? "|→" : "←|"}
+        </button>
       </div>
       {channels.map((c) => (
-        <button key={c.name} className={`flex items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${c.name === "swanand" ? "bg-white/10" : "hover:bg-white/5"}`}>
-          <div className={`h-8 w-8 rounded-full bg-linear-to-br ${c.color} shrink-0 ring-2 ${c.live ? "ring-live" : "ring-transparent"} ring-offset-2 ring-offset-[var(--twitch-panel)]`} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white truncate">{c.name}</p>
-            <p className="text-xs text-white/60 truncate">{c.game}</p>
+        <button
+          key={c.name}
+          onClick={() => onSectionChange(c.sectionId)}
+          title={isCollapsed ? `${c.name} (${c.game})` : undefined}
+          className={`flex items-center rounded-md transition-colors ${
+            isCollapsed ? "justify-center p-1.5" : "gap-3 px-2 py-1.5 text-left"
+          } ${
+            activeSection === c.sectionId ? "bg-foreground/10 text-foreground" : "hover:bg-foreground/5 text-muted-foreground"
+          }`}
+        >
+          <div className={`h-8 w-8 rounded-full bg-linear-to-br ${c.color} shrink-0 ring-2 ${c.live ? "ring-live" : "ring-transparent"} ring-offset-2 ring-offset-[var(--twitch-panel)] relative`} >
+            {isCollapsed && c.live && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-live ring-2 ring-[var(--twitch-panel)] animate-pulse" />
+            )}
           </div>
-          <div className="flex items-center gap-1 text-xs text-white/80">
-            <span className="h-1.5 w-1.5 rounded-full bg-live" />
-            {c.viewers}
-          </div>
+          {!isCollapsed && (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{c.game}</p>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                {c.live ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse" />
+                    <span>{c.viewers}</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground/40">0</span>
+                )}
+              </div>
+            </>
+          )}
         </button>
       ))}
     </aside>
   );
 }
 
-function PlayerControls() {
-  const [playing, setPlaying] = useState(true);
+interface PlayerControlsProps {
+  isFullScreen: boolean;
+  onToggleFullScreen: () => void;
+  isBgDark: boolean;
+}
+
+function PlayerControls({ isFullScreen, onToggleFullScreen, isBgDark }: PlayerControlsProps) {
   return (
-    <div className="absolute inset-x-0 bottom-0 z-30 h-14 bg-linear-to-t from-black/90 to-transparent flex items-end px-3 pb-2 gap-2">
-      <button onClick={() => setPlaying((p) => !p)} className="p-1.5 rounded hover:bg-white/10 text-white">
-        {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-      </button>
-      <button className="p-1.5 rounded hover:bg-white/10 text-white"><Volume2 className="h-5 w-5" /></button>
-      <div className="w-20 h-1 rounded-full bg-white/25 overflow-hidden">
-        <div className="h-full w-3/4 bg-white" />
+    <div className="absolute inset-x-0 bottom-0 z-30 h-14 bg-transparent flex items-end px-3 pb-2 justify-between animate-fade-in">
+      <div className="flex items-center gap-2 ml-2">
+        {/* LIVE box */}
+        <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-xs border border-white/15 px-2.5 py-1 rounded text-white select-none shadow-md">
+          <span className="h-2 w-2 rounded-full bg-live animate-pulse" />
+          <span className="text-xs font-semibold uppercase tracking-wider">LIVE</span>
+        </div>
+        {/* Count box */}
+        <div className="flex items-center gap-1 bg-black/60 backdrop-blur-xs border border-white/15 px-2.5 py-1 rounded text-white select-none shadow-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-live" />
+          <span className="text-xs font-semibold">1</span>
+        </div>
       </div>
-      <div className="flex items-center gap-1.5 ml-2">
-        <span className="h-2 w-2 rounded-full bg-live animate-pulse" />
-        <span className="text-xs text-white font-semibold">LIVE</span>
-      </div>
-      <div className="ml-auto flex items-center gap-1">
-        <button className="p-1.5 rounded hover:bg-white/10 text-white"><Settings className="h-5 w-5" /></button>
-        <button className="p-1.5 rounded hover:bg-white/10 text-white"><Maximize className="h-5 w-5" /></button>
+      <div className="flex items-center gap-1">
+        <button 
+          onClick={onToggleFullScreen} 
+          className={`p-1.5 rounded transition-colors ${
+            isBgDark ? "text-white hover:bg-white/10" : "text-black hover:bg-black/10"
+          }`}
+        >
+          <Maximize className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
 }
 
-function StreamerBar() {
+interface StreamerBarProps {
+  dark: boolean;
+  onToggleDark: () => void;
+}
+
+function StreamerBar({ dark, onToggleDark }: StreamerBarProps) {
   const [following, setFollowing] = useState(false);
   return (
-    <div className="bg-[var(--twitch-panel)] border-b border-black/60 p-4">
-      <div className="flex items-start gap-3">
-        <div className="h-14 w-14 rounded-full bg-linear-to-br from-primary to-primary-glow shrink-0 ring-2 ring-live" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-white font-bold text-lg truncate">swanand</h2>
-            <BadgeCheck className="h-4 w-4 text-primary fill-primary/30" />
-          </div>
-          <p className="text-white text-sm truncate">shipping a portfolio site live — !socials !uses</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <a className="text-primary hover:underline font-semibold">Software & Game Development</a>
-            <div className="flex gap-1.5">
-              <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80">English</span>
-              <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80">React</span>
-              <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80">TypeScript</span>
-              <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/80">Chill</span>
+    <div className="bg-[var(--twitch-panel)] border-t border-black/10 dark:border-black/60 p-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <img 
+            src="/franco.jpeg" 
+            alt="Francisco Ramirez" 
+            className="h-16 w-16 rounded-full object-cover shrink-0 ring-2 ring-live"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-foreground font-bold text-lg truncate">Francisco Ramirez</h2>
+              <span className="text-xs text-muted-foreground font-normal shrink-0">@franco</span>
+            </div>
+            <p className="text-muted-foreground text-sm truncate">Cloud Engineer @ Bloomberg</p>
+            <div className="mt-2">
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-muted-foreground">Go</span>
+                <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-muted-foreground">Python</span>
+                <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-muted-foreground">Data Structures</span>
+                <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-muted-foreground">Soccer</span>
+                <span className="px-2 py-0.5 rounded-full bg-foreground/10 text-muted-foreground">History</span>
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => setFollowing((f) => !f)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold transition-colors ${
-              following ? "bg-white/10 text-white hover:bg-white/15" : "bg-primary text-white hover:bg-primary-glow"
-            }`}
+        <div className="flex items-center flex-wrap gap-2 shrink-0">
+          <a 
+            href="https://github.com/FrancoRamirezz" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            title="GitHub"
+            className="p-2.5 rounded bg-primary hover:bg-primary-glow text-white transition-colors flex items-center justify-center"
           >
-            <Heart className={`h-4 w-4 ${following ? "fill-primary text-primary" : ""}`} />
-            {following ? "Following" : "Follow"}
+            <Github className="h-4 w-4" />
+          </a>
+
+          <a 
+            href="https://linkedin.com/in/franco" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            title="LinkedIn"
+            className="p-2.5 rounded bg-primary hover:bg-primary-glow text-white transition-colors flex items-center justify-center"
+          >
+            <Linkedin className="h-4 w-4" />
+          </a>
+
+          <button
+            onClick={onToggleDark}
+            title={dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            className="p-2.5 rounded bg-foreground/10 text-foreground hover:bg-foreground/15 transition-colors flex items-center justify-center"
+          >
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
-          <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-white text-sm font-bold hover:bg-primary-glow">
-            <Diamond className="h-4 w-4" /> Subscribe
-          </button>
-          <button className="p-2 rounded bg-white/10 text-white hover:bg-white/15"><Share2 className="h-4 w-4" /></button>
         </div>
       </div>
     </div>
   );
 }
 
-function TwitchChat() {
+interface TwitchChatProps {
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
   const initialMessages = [
-    { user: "modBot", color: "text-emerald-400", badge: "mod", text: "Welcome to the stream! Please follow chat rules. <3" },
-    { user: "pixel_wizard", color: "text-fuchsia-400", text: "the site is CLEAN wow" },
-    { user: "gamer_42", color: "text-sky-400", text: "TwitchPurple is elite theme choice PogChamp" },
-    { user: "chatterbox", color: "text-amber-400", text: "click About!! click About!!" },
-    { user: "swanand_fan", color: "text-rose-400", badge: "sub", text: "day 47 of watching swanand build things" },
-    { user: "kappa_king", color: "text-lime-400", text: "Kappa Kappa Kappa" },
-    { user: "devops_dan", color: "text-cyan-400", text: "the LIVE badge is a nice touch lol" },
-    { user: "night_owl", color: "text-violet-400", text: "how did you do the scanline effect?" },
-    { user: "modBot", color: "text-emerald-400", badge: "mod", text: "swanand has been live for 3 hours" },
-    { user: "ez_clap", color: "text-orange-400", text: "EZ Clap 👏" },
-    { user: "lurker99", color: "text-teal-400", text: "just lurking, love the vibe" },
-    { user: "code_gremlin", color: "text-pink-400", badge: "sub", text: "please add a bookshelf tab ty" },
+    { user: "Franco Bot", color: "text-emerald-400", badge: "mod", text: "Welcome to my corner of the internet! Please send a message if you want to chat." },
+    { user: "pixel_wizard", color: "text-fuchsia-400", text: "What are you shipping next?" },
+    { user: "gamer_42", color: "text-sky-400", text: "I have a project in mind. Are you down?" },
   ];
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [storedMessage, setStoredMessage] = useState("");
+  const [chosenUsername, setChosenUsername] = useState("");
 
   const send = () => {
     if (!input.trim()) return;
-    setMessages((m) => [...m, { user: "you", color: "text-primary", text: input.trim() }]);
+
+    if (step === 1) {
+      const msg = input.trim();
+      setStoredMessage(msg);
+
+      const randomUsernames = [
+        "pixel_wizard", "gamer_42", "cyber_ninja", "code_commander", 
+        "tech_guru", "binary_boss", "digital_explorer", "innovator_99",
+        "spark_plug", "neon_rider", "quantum_coder", "vector_scale"
+      ];
+      const randUser = randomUsernames[Math.floor(Math.random() * randomUsernames.length)];
+      setChosenUsername(randUser);
+
+      setInput("");
+      setStep(2);
+    } else {
+      const email = input.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setMessages((m) => [
+          ...m,
+          {
+            user: "System",
+            color: "text-red-500",
+            badge: "mod",
+            text: "❌ invalid email format. Please enter your valid email address."
+          }
+        ]);
+        return;
+      }
+
+      setMessages((m) => [
+        ...m, 
+        { 
+          user: chosenUsername, 
+          color: "text-purple-400", 
+          text: storedMessage 
+        }
+      ]);
+
+      const templateParams = {
+        name: chosenUsername,
+        message: storedMessage,
+        title: "New collaboration inquiry",
+        email: email,
+        timestamp: new Date().toLocaleString()
+      };
+
+      emailjs.send(
+        "service_n4rbb08",
+        "template_w9p5274",
+        templateParams,
+        "FgujpuYsQnQamJ-yI"
+      ).then(
+        (response) => {
+          console.log("SUCCESS!", response.status, response.text);
+          setMessages((m) => [
+            ...m,
+            {
+              user: "System",
+              color: "text-emerald-500",
+              badge: "mod",
+              text: "📨 Email sent successfully!"
+            }
+          ]);
+        },
+        (error) => {
+          console.log("FAILED...", error);
+          setMessages((m) => [
+            ...m,
+            {
+              user: "System",
+              color: "text-red-500",
+              badge: "mod",
+              text: `❌ Email failed: ${error?.text || error || "Unknown error"}`
+            }
+          ]);
+        }
+      );
+
+      setInput("");
+      setStoredMessage("");
+      setChosenUsername("");
+      setStep(1);
+    }
+  };
+
+  const cancel = () => {
     setInput("");
+    setStoredMessage("");
+    setChosenUsername("");
+    setStep(1);
   };
 
   return (
-    <aside className="xl:w-80 shrink-0 flex flex-col bg-[var(--twitch-panel)] border-l border-black/60 h-[70vh] xl:h-auto">
-      <div className="h-12 shrink-0 border-b border-black/60 flex items-center justify-between px-3">
-        <button className="p-1.5 rounded hover:bg-white/10 text-white/80"><MoreHorizontal className="h-4 w-4" /></button>
-        <p className="text-white text-sm font-bold uppercase tracking-wider">Stream Chat</p>
-        <button className="p-1.5 rounded hover:bg-white/10 text-white/80"><Users className="h-4 w-4" /></button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 text-sm">
-        <div className="rounded-md bg-white/5 p-3 mb-2 text-white/80 text-xs flex gap-2">
-          <Sparkles className="h-4 w-4 text-primary shrink-0" />
-          <span>Welcome to the chat room! Be excellent to each other.</span>
-        </div>
-        {messages.map((m, i) => (
-          <div key={i} className="text-white/90 leading-snug break-words">
-            {m.badge === "mod" && <span className="inline-block mr-1 px-1 rounded bg-emerald-500 text-white text-[10px] font-bold align-middle">MOD</span>}
-            {m.badge === "sub" && <span className="inline-block mr-1 px-1 rounded bg-primary text-white text-[10px] font-bold align-middle">SUB</span>}
-            <span className={`font-bold ${m.color}`}>{m.user}</span>
-            <span className="text-white/60">: </span>
-            <span>{m.text}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="p-3 border-t border-black/60 space-y-2">
-        <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-md px-2 py-1.5">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Send a message"
-            className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/40"
-          />
-          <button className="p-1 text-white/70 hover:text-white"><Smile className="h-4 w-4" /></button>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 text-white/60">
-            <button className="p-1.5 rounded hover:bg-white/10"><Gift className="h-4 w-4" /></button>
-            <button className="p-1.5 rounded hover:bg-white/10"><Diamond className="h-4 w-4" /></button>
-            <button className="p-1.5 rounded hover:bg-white/10"><Zap className="h-4 w-4" /></button>
-          </div>
+    <aside className={`shrink-0 flex flex-col bg-[var(--twitch-panel)] border-l border-black/60 h-[70vh] xl:h-auto transition-all duration-300 ${isCollapsed ? "w-12 xl:w-12" : "xl:w-80 w-full"}`}>
+      <div className={`h-12 shrink-0 flex items-center px-3 relative ${isCollapsed ? "justify-center" : "justify-between border-b border-black/60"}`}>
+        {isCollapsed ? (
           <button
-            onClick={send}
-            className="px-3 py-1.5 rounded bg-primary hover:bg-primary-glow text-white text-sm font-bold"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
+            title="Expand"
+            className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-[14px] font-sans font-bold select-none cursor-pointer flex items-center justify-center p-1 outline-none"
           >
-            Chat
+            ←|
           </button>
-        </div>
-        <div className="flex items-center justify-between text-[11px] text-white/50">
-          <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {messages.length} messages</span>
-          <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> BetterTTV</span>
-        </div>
+        ) : (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse();
+              }}
+              title="Collapse"
+              className="absolute left-3 bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-[14px] font-sans font-bold select-none cursor-pointer flex items-center justify-center p-1 outline-none z-10"
+            >
+              |→
+            </button>
+            <div className="flex-1 text-center">
+              <p className="text-foreground text-sm font-medium uppercase tracking-wider">Contact me</p>
+            </div>
+          </>
+        )}
       </div>
+
+      {!isCollapsed && (
+        <>
+          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 text-sm">
+            {messages.map((m, i) => (
+              <div key={i} className="text-foreground/90 leading-snug break-words">
+                {m.badge === "mod" && <span className="inline-block mr-1 px-1 rounded bg-emerald-500 text-white text-[10px] font-bold align-middle">MOD</span>}
+                {m.badge === "sub" && <span className="inline-block mr-1 px-1 rounded bg-primary text-white text-[10px] font-bold align-middle">SUB</span>}
+                <span className={`font-bold ${m.color}`}>{m.user}</span>
+                <span className="text-muted-foreground/60">: </span>
+                <span>{m.text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-3 border-t border-black/10 dark:border-black/60 space-y-2">
+            <div className={`flex items-center gap-2 rounded-md px-2 py-1.5 border transition-all ${
+              step === 2 
+                ? "bg-red-50 dark:bg-red-950/20 border-red-500" 
+                : "bg-white dark:bg-black/40 border-black/15 dark:border-white/10"
+            }`}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                placeholder={step === 2 ? "Enter your email so they can reply..." : "Send a message"}
+                className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-foreground/50 dark:placeholder:text-muted-foreground/40"
+              />
+              <button className="p-1 text-muted-foreground hover:text-foreground"><Smile className="h-4 w-4" /></button>
+            </div>
+            <div className="flex justify-end gap-2">
+              {step === 2 && (
+                <button
+                  onClick={cancel}
+                  title="Cancel"
+                  className="px-3 py-1.5 rounded border border-black/15 dark:border-white/10 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 text-sm font-bold transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+              <button
+                onClick={send}
+                className="px-3 py-1.5 rounded bg-primary hover:bg-primary-glow text-white text-sm font-bold w-full sm:w-auto"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   );
 }
 
 
-function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
+function SectionHeader({ title, subtitle, subtitleClassName }: { title: string; subtitle?: string; subtitleClassName?: string }) {
   return (
     <div className="pb-6 border-b border-border">
       <h2 className="text-4xl font-bold tracking-tight">{title}</h2>
-      <p className="mt-2 text-muted-foreground">{subtitle}</p>
+      {subtitle && <p className={`mt-2 ${subtitleClassName || "text-muted-foreground"}`}>{subtitle}</p>}
     </div>
   );
 }
@@ -418,19 +669,23 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
 function HomeSection({ onGoAbout }: { onGoAbout: () => void }) {
   return (
     <div>
-      <SectionHeader title="Home" subtitle="Welcome to my corner of the internet." />
+      <SectionHeader 
+        title="Welcome to my corner of the internet!" 
+        subtitle="Hello world, I am Franco. I am currently based in Los Angeles 🌴🎬🌆"
+        subtitleClassName="text-primary font-semibold text-base"
+      />
       <div className="mt-8 grid gap-4">
         <div className="rounded-xl bg-card border border-border p-6">
-          <p className="text-sm uppercase tracking-wider text-primary font-semibold">Currently Live</p>
-          <h3 className="mt-2 text-2xl font-bold">Building things at Stuut Technologies</h3>
+          <p className="text-sm uppercase tracking-wider text-primary font-semibold">Right now I am,</p>
+          <h3 className="mt-2 text-2xl font-bold">Co-founding a Civic Tech Tool</h3>
           <p className="mt-2 text-muted-foreground">
-            Shipping real-time systems, dashboards, and the occasional side quest.
+            Changing how non-native speakers prepare for their U.S. citizenship test.
           </p>
           <button
             onClick={onGoAbout}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors"
           >
-            Follow the story <ArrowRight className="h-4 w-4" />
+            See my full story <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -469,9 +724,7 @@ function AboutSection({ tab, setTab }: { tab: TabId; setTab: (t: TabId) => void 
   ];
   return (
     <div>
-      <SectionHeader title="About" subtitle="A short story of me, not important but seems better than nothing." />
-
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-2 p-1 rounded-xl bg-card border border-border">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-1 rounded-xl bg-card border border-border">
         {tabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
@@ -501,39 +754,28 @@ function AboutSection({ tab, setTab }: { tab: TabId; setTab: (t: TabId) => void 
 
 function IntroTab() {
   return (
-    <div className="rounded-xl bg-card border border-border p-6 space-y-4">
-      <p className="text-lg leading-relaxed">
-        Hey — I'm <span className="text-primary font-semibold">Swanand</span>. I build software for a living and for fun.
+    <div className="rounded-xl bg-foreground/[0.03] border border-foreground/[0.08] p-6 space-y-4 w-full animate-fade-in">
+      <h3 className="text-xl font-bold text-primary">
+        What I Believe In
+      </h3>
+      <p className="text-black dark:text-white/90 leading-relaxed text-base">
+        I believe that technology should serve a public purpose and empower communities. 
+        Whether building tools to make complex bureaucratic processes accessible or writing high-performance systems, 
+        the ultimate goal is always to design software that is intuitive, transparent, and built with empathy. 
+        By co-founding tools in civic tech, I strive to bridge the gap between people and the resources they need.
       </p>
-      <p className="text-muted-foreground leading-relaxed">
-        Currently a Software Engineer working on real-time systems, developer tooling, and things that involve too much
-        WebSocket debugging. Previously at Apriora and Abby Intelligence. When I'm not shipping, I'm probably rewatching
-        the same three streams on Twitch.
-      </p>
-      <div className="flex flex-wrap gap-2 pt-2">
-        {["TypeScript", "Python", "Go", "React", "PostgreSQL", "AWS"].map((s) => (
-          <span key={s} className="px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-medium">
-            {s}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
 
 function ResumeTab() {
   return (
-    <div className="rounded-xl bg-card border border-border p-6">
-      <h3 className="text-xl font-bold">Resume</h3>
-      <p className="mt-2 text-muted-foreground">
-        The one-pager version, condensed for recruiters and their PDF viewers.
-      </p>
-      <a
-        href="#"
-        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-glow transition-colors"
-      >
-        <FileText className="h-4 w-4" /> Download PDF
-      </a>
+    <div className="border border-border rounded-xl overflow-hidden h-[650px] w-full bg-zinc-800 animate-fade-in">
+      <iframe
+        src="/resume.pdf#view=Fit"
+        title="Francisco Ramirez Resume"
+        className="w-full h-full border-none"
+      />
     </div>
   );
 }
@@ -555,51 +797,54 @@ type Job = {
 function CareerTab() {
   const jobs: Job[] = [
     {
-      role: "SWE",
-      company: "Stuut Technologies Inc.",
-      location: "San Francisco, CA",
+      role: "Cloud Engineer",
+      company: "Bloomberg LP",
+      location: "New York, NY",
       flag: "🇺🇸",
       period: "Jun 2026 - Present",
       duration: "2 Months",
-      type: "Fulltime",
-      mode: "In-Person",
-      logoBg: "bg-yellow-300",
-      logoText: "S",
+      type: "Full-time",
+      mode: "Hybrid",
+      logoBg: "bg-orange-500 text-white",
+      logoText: "B",
       responsibilities: [
-        "Building the next generation of collections automation with LLM-driven workflows.",
-        "Owning core services end-to-end, from schema design to on-call rotation.",
+        "Architecting and maintaining cloud-native infrastructure for low-latency financial systems.",
+        "Configuring containerized pipelines utilizing Kubernetes and service mesh overlays.",
+        "Automating infrastructure deployment pipelines using Terraform and Ansible."
       ],
     },
     {
-      role: "SWE",
-      company: "Apriora Inc. dba Alex",
-      location: "San Francisco, CA",
+      role: "Co-Founder & Lead Dev",
+      company: "CivicPrep",
+      location: "Los Angeles, CA",
       flag: "🇺🇸",
-      period: "Nov 2025 - May 2026",
-      duration: "7 Months",
-      type: "Fulltime",
-      mode: "In-Person",
-      logoBg: "bg-green-900",
-      logoText: "A",
-      responsibilities: [
-        "Built Zoom + Recall.ai interview automation pipelines (OAuth, webhooks, transcript ingestion, media processing, cheating detection, fraud detection, etc) enabling real-time meeting capture and post-interview analytics.",
-        "Remediated security vulnerabilities (IDOR, unauthenticated data exposure, NoSQL injection, path disclosure, etc) while implementing observability with Datadog (RUM, APM tracing, Logging, Synthetics, Monitors & Alerts).",
-      ],
-    },
-    {
-      role: "SWE Intern",
-      company: "Abby Intelligence Inc.",
-      location: "Hollywood, CA",
-      flag: "🇺🇸",
-      period: "Jul 2025 - Nov 2025",
+      period: "Jan 2026 - May 2026",
       duration: "5 Months",
+      type: "Co-founder",
+      mode: "Remote",
+      logoBg: "bg-primary text-white",
+      logoText: "CP",
+      responsibilities: [
+        "Co-founded a civic tech tool that changes how non-native speakers prepare for their U.S. citizenship test.",
+        "Designed intuitive multi-lingual learning applications with local caching features.",
+        "Implemented real-time quiz pipelines and progress tracking metrics."
+      ],
+    },
+    {
+      role: "Software Engineer Intern",
+      company: "UCLA IT Services",
+      location: "Los Angeles, CA",
+      flag: "🇺🇸",
+      period: "Jun 2025 - Dec 2025",
+      duration: "7 Months",
       type: "Internship",
       mode: "In-Person",
-      logoBg: "bg-white",
-      logoText: "abby",
+      logoBg: "bg-blue-600 text-white",
+      logoText: "UC",
       responsibilities: [
-        "Built AI-driven consumer product features shipping to production.",
-        "Prototyped speech-to-agent flows using OpenAI Realtime + custom tool routing.",
+        "Engineered portal endpoints and modernized authentication protocols for student directories.",
+        "Collaborated with developers to optimize database query performance and api structures.",
+        "Modernized front-end dashboards using React and Tailwind CSS."
       ],
     },
   ];
@@ -607,7 +852,7 @@ function CareerTab() {
   return (
     <div className="space-y-4">
       {jobs.map((j, i) => (
-        <JobCard key={i} job={j} defaultOpen={i === 1} />
+        <JobCard key={i} job={j} defaultOpen={i === 0} />
       ))}
     </div>
   );
@@ -616,15 +861,15 @@ function CareerTab() {
 function JobCard({ job, defaultOpen = false }: { job: Job; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl bg-card border border-border p-5 hover:border-primary/40 transition-colors">
+    <div className="rounded-xl bg-card border border-border p-5 hover:border-primary/40 transition-colors animate-fade-in">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 items-start">
-        <div className={`h-14 w-14 rounded-lg ${job.logoBg} shrink-0 grid place-items-center font-black text-black text-lg`}>
+        <div className={`h-14 w-14 rounded-lg ${job.logoBg} shrink-0 grid place-items-center font-black text-lg select-none`}>
           {job.logoText}
         </div>
         <div className="min-w-0">
           <h3 className="text-lg font-bold">{job.role}</h3>
           <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-foreground/90">{job.company}</span>
+            <span className="text-foreground/90 font-semibold">{job.company}</span>
             <span className="text-primary">•</span>
             <span>
               {job.location} <span className="ml-0.5">{job.flag}</span>
@@ -641,7 +886,7 @@ function JobCard({ job, defaultOpen = false }: { job: Job; defaultOpen?: boolean
           </p>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-glow"
           >
             {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             {open ? "Hide Responsibilities" : "Show Responsibilities"}
@@ -663,20 +908,47 @@ function JobCard({ job, defaultOpen = false }: { job: Job; defaultOpen?: boolean
 
 function EducationTab() {
   return (
-    <div className="rounded-xl bg-card border border-border p-5">
+    <div className="rounded-xl bg-card border border-border p-6 space-y-6 animate-fade-in">
       <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 items-start">
-        <div className="h-14 w-14 rounded-lg bg-primary/20 shrink-0 grid place-items-center">
-          <GraduationCap className="h-7 w-7 text-primary" />
+        <div className="h-16 w-16 rounded-xl bg-blue-600 shrink-0 grid place-items-center text-white font-black text-xl select-none">
+          UCLA
         </div>
         <div className="min-w-0">
-          <h3 className="text-lg font-bold">B.S. Computer Science</h3>
-          <p className="text-sm text-muted-foreground">
-            <span className="text-foreground/90">University Name</span>{" "}
-            <span className="text-primary">•</span> 2021 - 2025
+          <h3 className="text-xl font-bold text-foreground">B.S. Computer Science</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            <span className="text-foreground/90 font-semibold">University of California, Los Angeles</span>{" "}
+            <span className="text-primary">•</span> 2022 - 2026
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Coursework in distributed systems, compilers, ML, and enough LeetCode to fill a small library.
-          </p>
+          
+          <div className="mt-4 space-y-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Coursework Summary</p>
+              <p className="mt-1 text-sm text-foreground/80 leading-relaxed">
+                Distributed Systems, Cloud Architecture, Operating Systems, Data Structures & Algorithms, Systems Programming, Computer Networks.
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Certifications</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-foreground/10 text-muted-foreground text-xs font-semibold">
+                  AWS Certified Solutions Architect
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-foreground/10 text-muted-foreground text-xs font-semibold">
+                  Certified Kubernetes Administrator (CKA)
+                </span>
+              </div>
+            </div>
+            
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Accolades & Leadership</p>
+              <ul className="mt-1 text-sm text-foreground/80 list-disc pl-4 space-y-1">
+                <li>Dean's Honor List (All Quarters)</li>
+                <li>UCLA Civic Hackathon First Place Winner</li>
+                <li>Graduated Magna Cum Laude</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -709,34 +981,21 @@ function ProjectsSection() {
 }
 
 function ContactSection() {
-  const links = [
-    { label: "Email", value: "hello@swanand.dev", icon: Mail, href: "mailto:hello@swanand.dev" },
-    { label: "GitHub", value: "@swanand", icon: Github, href: "#" },
-    { label: "Twitter", value: "@swanand", icon: Twitter, href: "#" },
-    { label: "LinkedIn", value: "in/swanand", icon: Linkedin, href: "#" },
-  ];
   return (
     <div>
-      <SectionHeader title="Contact" subtitle="Slide into the DMs — or use email like a professional." />
-      <div className="mt-8 grid md:grid-cols-2 gap-4">
-        {links.map((l) => {
-          const Icon = l.icon;
-          return (
-            <a
-              key={l.label}
-              href={l.href}
-              className="group flex items-center gap-4 rounded-xl bg-card border border-border p-5 hover:border-primary transition-colors"
-            >
-              <div className="h-11 w-11 rounded-lg bg-primary/15 grid place-items-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{l.label}</p>
-                <p className="font-semibold truncate">{l.value}</p>
-              </div>
-            </a>
-          );
-        })}
+      <SectionHeader 
+        title="Send me a quick DM in the chat." 
+        subtitle="OR get in touch professionally and let's have a conversation about on how we can work together." 
+        subtitleClassName="text-primary font-semibold text-base"
+      />
+      <div className="mt-8 pl-1">
+        <a 
+          href="mailto:hello@franco.dev" 
+          className="inline-flex items-center gap-2.5 text-lg font-bold text-foreground hover:text-primary transition-colors group"
+        >
+          <Mail className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+          hello@franco.dev
+        </a>
       </div>
     </div>
   );
