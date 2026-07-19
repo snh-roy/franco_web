@@ -28,6 +28,8 @@ import {
   Heart,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Diamond,
   Gift,
   Settings,
@@ -343,9 +345,9 @@ function TwitchRail({ activeSection, onSectionChange, viewerCounts, isCollapsed,
           className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center p-1 outline-none"
         >
           {isCollapsed ? (
-            <ChevronRight className="h-5 w-5" />
+            <PanelLeftOpen className="h-5 w-5" />
           ) : (
-            <ChevronLeft className="h-5 w-5" />
+            <PanelLeftClose className="h-5 w-5" />
           )}
         </button>
       </div>
@@ -621,7 +623,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
               title="Expand"
               className="bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none cursor-pointer flex items-center justify-center"
             >
-              <ChevronLeft className="h-5 w-5 hidden xl:block" />
+              <PanelRightOpen className="h-5 w-5 hidden xl:block" />
               <ChevronUp className="h-5 w-5 block xl:hidden" />
             </button>
           </>
@@ -635,7 +637,7 @@ function TwitchChat({ isCollapsed, onToggleCollapse }: TwitchChatProps) {
               title="Collapse"
               className="absolute left-3 bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors p-1 outline-none z-10 cursor-pointer flex items-center justify-center"
             >
-              <ChevronRight className="h-5 w-5 hidden xl:block" />
+              <PanelRightClose className="h-5 w-5 hidden xl:block" />
               <ChevronDown className="h-5 w-5 block xl:hidden" />
             </button>
             <div className="flex-1 text-center">
